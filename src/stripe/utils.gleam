@@ -3,6 +3,20 @@ import gleam/dynamic.{type DecodeErrors, type Dynamic, DecodeError}
 import gleam/option.{type Option}
 import gleam/result
 
+pub fn stripe_object(
+  constructor: fn(String, Dynamic) -> a,
+  object_type: String,
+) -> fn(Dynamic) -> Result(a, DecodeErrors) {
+  fn(dyn: Dynamic) -> Result(a, DecodeErrors) {
+    use _ <- result.try(dynamic.field("object", string_literal(object_type))(
+      dyn,
+    ))
+
+    use id <- result.try(dynamic.field("id", dynamic.string)(dyn))
+    Ok(constructor(id, dyn))
+  }
+}
+
 pub fn string_literal(
   expected value: String,
 ) -> fn(Dynamic) -> Result(Nil, DecodeErrors) {

@@ -1,9 +1,8 @@
-import gleam/dynamic.{type DecodeErrors, type Dynamic}
+import gleam/dynamic.{type Dynamic}
 import gleam/option.{type Option}
-import gleam/result
 import stripe/utils
 
-pub type CustomerAddress {
+pub opaque type CustomerAddress {
   CustomerAddress(
     city: Option(String),
     country: Option(String),
@@ -14,7 +13,7 @@ pub type CustomerAddress {
   )
 }
 
-pub type CustomerShipping {
+pub opaque type CustomerShipping {
   CustomerShipping(
     address: CustomerAddress,
     name: String,
@@ -22,17 +21,12 @@ pub type CustomerShipping {
   )
 }
 
-pub type Customer {
+pub opaque type Customer {
   Customer(id: String, json: Dynamic)
 }
 
-pub fn decode_customer(dyn: Dynamic) -> Result(Customer, DecodeErrors) {
-  use _ <- result.try(dynamic.field("object", utils.string_literal("customer"))(
-    dyn,
-  ))
-  use id <- result.try(dynamic.field("id", dynamic.string)(dyn))
-
-  Ok(Customer(id, dyn))
+pub fn decode(dyn: Dynamic) {
+  utils.stripe_object(Customer, "customer")(dyn)
 }
 
 fn decode_address(dyn: Dynamic) {
