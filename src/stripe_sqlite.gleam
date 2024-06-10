@@ -1,5 +1,8 @@
-import gleam/io
+import database
+import gleam/result
 
 pub fn main() {
-  io.println("Hello from stripe_sqlite!")
+  use _ <- result.try(database.migrate())
+
+  Ok(Nil)
 }
