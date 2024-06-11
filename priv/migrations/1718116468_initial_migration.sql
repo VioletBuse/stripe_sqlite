@@ -1,3 +1,4 @@
+-- initial_migration
 
 CREATE TABLE IF NOT EXISTS paths (
     id TEXT NOT NULL PRIMARY KEY,
@@ -6,11 +7,9 @@ CREATE TABLE IF NOT EXISTS paths (
     created_at INT NOT NULL
 );
 
-DROP TABLE stripe_entities;
-
 CREATE TABLE IF NOT EXISTS path_fetch_results (
     id TEXT NOT NULL PRIMARY KEY,
     json TEXT NOT NULL,
     path_id TEXT NOT NULL REFERENCES paths(id),
     fetched_at INT NOT NULL
-)
+);
