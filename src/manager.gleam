@@ -13,7 +13,11 @@ pub type PathToProcess {
 pub type Message {
   Shutdown
   GetFirstTask(client: Subject(Option(PathToProcess)))
-  CommitTask(result: PathProcessingResult, client: Subject(Option(PathToProcess)))
+  // CommitTask(
+  //   result: PathProcessingResult,
+  //   next_path: String,
+  //   client: Subject(Option(PathToProcess)),
+  // )
 }
 
 type PathProcessing {
@@ -29,16 +33,17 @@ type State {
 }
 
 fn handle_message(message: Message, state: State) -> actor.Next(Message, State) {
+  let not_in = get_paths_being_processed(state)
+  let state = State(..state, processing: not_in)
+
+  let currently_processing_ids = not_in |> list.map(fn(item) { item.path_id })
+
   case message {
     Shutdown -> actor.Stop(process.Normal)
     GetFirstTask(client) -> {
-      let not_in = get_paths_being_processed(state)
       let can_take = intensity_tracker.add_event(state.rate_limiter)
       let next_path =
-        process_commit.run(process_commit.Init(
-          not_in
-          |> list.map(fn(element) { element.path_id }),
-        ))
+        process_commit.run(process_commit.Init(currently_processing_ids))
 
       case can_take, next_path {
         Ok(tracker), Ok(next_path) -> {
@@ -60,7 +65,17 @@ fn handle_message(message: Message, state: State) -> actor.Next(Message, State) 
         }
       }
     }
-    CommitTask(result, client) -> actor.Stop(process.Normal)
+    // CommitTask(result, next_path, client) -> {
+    //   let can_take = intensity_tracker.add_event(state.rate_limiter)
+
+    //   let next_path =
+    //     process_commit.run(process_commit.Commit(
+    //       path_id: result.path_id,
+    //       json: result.json,
+    //       next_enqueued_path: next_path,
+    //       not_in: currently_processing_ids,
+    //     ))
+    // }
   }
 }
 

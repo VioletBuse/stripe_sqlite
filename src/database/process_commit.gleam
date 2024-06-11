@@ -12,7 +12,12 @@ pub type CommitResult {
 
 pub type CommitRequest {
   Init(not_in: List(String))
-  Commit(path_id: String, json: String, next_enqueued_path: String)
+  Commit(
+    path_id: String,
+    json: String,
+    next_enqueued_path: String,
+    not_in: List(String),
+  )
 }
 
 pub fn run(request: CommitRequest) -> Result(CommitResult, Nil) {
@@ -64,7 +69,7 @@ pub fn run(request: CommitRequest) -> Result(CommitResult, Nil) {
         }
       }
     }
-    Commit(path_id, resulting_json, next_path) -> {
+    Commit(path_id, resulting_json, next_path, not_in) -> {
       use _ <- result.try(
         sqlight.query(
           "UPDATE paths SET to_fetch = 1 WHERE id = ?;",
@@ -119,6 +124,9 @@ pub fn run(request: CommitRequest) -> Result(CommitResult, Nil) {
         )
         |> result.nil_error,
       )
+
+      let next_path =
+        list.filter(next_path, fn(entry) { list.contains(not_in, entry.0) })
 
       case next_path {
         [] -> Error(Nil)
