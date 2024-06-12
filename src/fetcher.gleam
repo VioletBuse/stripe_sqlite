@@ -12,6 +12,24 @@ import httpp/send
 import jackson
 import stripe_config
 
+pub fn start_fetch_task(
+  request: StripeResourceRequest,
+  config: stripe_config.StripeConfig,
+  response_subject: Subject(
+    Result(StripeResourceResponse, StripeResourceFetchError),
+  ),
+) {
+  process.start(
+    fn() {
+      let result = fetch_stripe_list(request, config)
+      process.send(response_subject, result)
+    },
+    True,
+  )
+
+  Nil
+}
+
 pub type StripeResourceRequest {
   StripeResourceRequest(
     base_resource_url: String,
@@ -24,6 +42,7 @@ pub type StripeResourceResponse {
     object_type: String,
     values: List(String),
     has_more: Bool,
+    last_id: Option(String),
   )
 }
 
@@ -31,6 +50,7 @@ pub type StripeResourceFetchError {
   HttpClientError(Dynamic)
   JsonParseError
   InvalidListResponse
+  InvalidDataObjectValues
   BadRequest
   Unauthorized
   RequestFailed
@@ -40,8 +60,6 @@ pub type StripeResourceFetchError {
   TooManyRequests
   InternalServerError
 }
-
-// pub fn start_fetcher(manager: Subject())
 
 type StripeListObject {
   StripeListObject(url: String, has_more: Bool, values: List(Dynamic))
@@ -107,7 +125,37 @@ fn fetch_stripe_list(
     entries |> result.map_error(fn(_) { InvalidListResponse }),
   )
 
-  Ok(StripeResourseResponse(decoded.url, entries, decoded.has_more))
+  let object_type =
+    decoded.values
+    |> list.map(dynamic.field("object", dynamic.string))
+    |> result.all
+    |> result.nil_error
+    |> result.map(list.unique)
+    |> result.try(fn(list) {
+      case list {
+        [object_type] -> Ok(object_type)
+        _ -> Error(Nil)
+      }
+    })
+
+  use object_type <- result.try(
+    object_type |> result.map_error(fn(_) { InvalidDataObjectValues }),
+  )
+
+  let last_data_id =
+    decoded.values
+    |> list.last
+    |> result.map(dynamic.field("id", dynamic.string))
+    |> result.map(result.nil_error)
+    |> result.flatten
+    |> option.from_result
+
+  Ok(StripeResourseResponse(
+    object_type: object_type,
+    values: entries,
+    has_more: decoded.has_more,
+    last_id: last_data_id,
+  ))
 }
 
 fn status_code_to_error(status: Int) -> StripeResourceFetchError {
