@@ -3,7 +3,6 @@ import gleam/dynamic.{type Dynamic}
 import gleam/erlang/process.{type Subject}
 import gleam/http.{type Header}
 import gleam/http/request
-import gleam/http/response
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -39,7 +38,9 @@ pub type StripeResourceRequest {
 
 pub type StripeResourceResponse {
   StripeResourseResponse(
+    request: StripeResourceRequest,
     object_type: String,
+    resource: String,
     values: List(String),
     has_more: Bool,
     last_id: Option(String),
@@ -151,7 +152,9 @@ fn fetch_stripe_list(
     |> option.from_result
 
   Ok(StripeResourseResponse(
+    request: resource,
     object_type: object_type,
+    resource: decoded.url,
     values: entries,
     has_more: decoded.has_more,
     last_id: last_data_id,
